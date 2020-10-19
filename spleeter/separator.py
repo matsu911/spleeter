@@ -162,10 +162,18 @@ class Separator(object):
         self._data_generator.update_data({
             'waveform': waveform,
             'audio_id': np.array(audio_descriptor)})
+        tpu = tf.distribute.cluster_resolver.TPUClusterResolver()
+        tf.config.experimental_connect_to_cluster(tpu)
+        tf.tpu.experimental.initialize_tpu_system(tpu)
+
+        # instantiate a distribution strategy
+        tpu_strategy = tf.distribute.experimental.TPUStrategy(tpu)
+
         # NOTE: perform separation.
-        prediction = next(prediction_generator)
-        prediction.pop('audio_id')
-        return prediction
+        with tpu_strategy.scope():
+            prediction = next(prediction_generator)
+            prediction.pop('audio_id')
+            return prediction
 
     def _stft(self, data, inverse: bool = False, length=None):
         """ Single entrypoint for both stft and istft. This computes stft and
